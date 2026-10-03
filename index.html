@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f8f5">
+  <meta name="description" content="Smart Notes автоматически сортирует заметки, задачи, идеи и напоминания.">
+  <title>Smart Notes — всё на своих местах</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f7f8f5;
+      --surface: #fff;
+      --ink: #20231f;
+      --muted: #81867e;
+      --line: #e9ebe5;
+      --green: #c8ef76;
+      --green-dark: #344222;
+      --blue: #e9f2ff;
+      --orange: #fff0df;
+      --shadow: 0 16px 45px rgba(38, 46, 29, .07);
+      font-family: "DM Sans", sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 340px; min-height: 100vh; color: var(--ink); background: var(--paper); }
+    button, textarea, input { font: inherit; }
+    button { color: inherit; }
+    .shell { min-height: 100vh; }
+    .sidebar { position: sticky; top: 0; height: 100vh; padding: 27px 17px 19px; border-right: 1px solid var(--line); display: flex; flex-direction: column; background: rgba(255,255,255,.7); z-index: 4; }
+    .brand { display: flex; gap: 11px; align-items: center; padding: 0 10px; margin-bottom: 32px; }
+    .brand-mark { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 12px; background: var(--green); color: var(--green-dark); font-size: 20px; transform: rotate(-5deg); }
+    .brand-name { font: 800 17px "Manrope", sans-serif; letter-spacing: 0; }
+    .brand-caption { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; }
+    .section-label { margin: 0 10px 10px; color: #9a9e97; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+    .nav-list { display: grid; gap: 3px; }
+    .nav-item { width: 100%; height: 41px; display: flex; align-items: center; gap: 10px; padding: 0 11px; border: 0; border-radius: 9px; background: transparent; color: #5c6259; text-align: left; cursor: pointer; transition: background .18s, color .18s, transform .18s; }
+    .nav-item:hover { background: #f0f2ec; transform: translateX(2px); }
+    .nav-item.active { color: var(--ink); background: #eef2e7; font-weight: 700; }
+    .nav-icon { width: 22px; text-align: center; font-size: 16px; }
+    .nav-count { margin-left: auto; color: #989d94; font-size: 11px; font-variant-numeric: tabular-nums; }
+    .sidebar-bottom { margin-top: auto; }
+    .storage-box { margin: 18px 3px 13px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+    .storage-top { display: flex; justify-content: space-between; font-size: 11px; }
+    .storage-top strong { font-size: 11px; }
+    .storage-track { height: 5px; margin-top: 11px; overflow: hidden; border-radius: 5px; background: #eef0eb; }
+    .storage-fill { width: 38%; height: 100%; border-radius: inherit; background: var(--green); }
+    .profile { display: flex; align-items: center; gap: 10px; padding: 10px 8px 0; border-top: 1px solid var(--line); }
+    .avatar { width: 33px; height: 33px; display: grid; place-items: center; border-radius: 50%; background: #e8eef8; font-size: 16px; }
+    .profile-name { font-size: 12px; font-weight: 700; }
+    .profile-note { margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .main { min-width: 0; padding: 0 38px 40px; }
+    .topbar { height: 75px; display: flex; align-items: center; justify-content: flex-end; gap: 20px; }
+    .breadcrumb { color: #8a8e87; font-size: 12px; }
+    .topbar-actions { display: flex; align-items: center; gap: 9px; }
+    .search-wrap { position: relative; width: min(350px, 48%); }
+    .search-symbol { position: absolute; left: 13px; top: 50%; color: #8b9187; transform: translateY(-50%); pointer-events: none; }
+    .search { width: 100%; height: 39px; padding: 0 14px 0 38px; border: 1px solid #e6e8e2; border-radius: 9px; outline: none; background: white; font-size: 12px; transition: border .2s, box-shadow .2s; }
+    .search:focus { border-color: #b5ce8c; box-shadow: 0 0 0 3px rgba(200,239,118,.22); }
+    .more-wrap { position: relative; }
+    .more-button { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid #e6e8e2; border-radius: 9px; background: white; color: #70766c; font-size: 22px; line-height: 1; cursor: pointer; }
+    .more-button:hover, .more-button[aria-expanded="true"] { border-color: #cbd8b8; background: #f5f8ef; color: #394132; }
+    .notice-dot { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border: 1px solid white; border-radius: 50%; background: #e18a53; }
+    .more-menu { position: absolute; top: calc(100% + 9px); right: 0; z-index: 8; width: min(350px, calc(100vw - 32px)); max-height: calc(100vh - 90px); overflow-y: auto; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: white; box-shadow: var(--shadow); animation: rise .18s both; }
+    .more-menu[hidden] { display: none; }
+    .more-menu .search-wrap { display: block; width: 100%; margin-bottom: 15px; }
+    .more-menu .nav-list { max-height: 290px; overflow-y: auto; }
+    .more-menu .nav-item { height: 37px; }
+    .menu-heading { margin: 0 0 9px; color: #8c9188; font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; }
+    .menu-events { display: grid; gap: 7px; max-height: 220px; overflow: auto; }
+    .menu-event { padding: 10px; border-radius: 8px; background: #f7f8f5; }
+    .menu-event strong { display: block; font-size: 11px; }
+    .menu-event span { display: block; margin-top: 3px; color: #858a81; font-size: 10px; line-height: 1.45; }
+    .menu-empty { padding: 9px 0 12px; color: #858a81; font-size: 11px; }
+    .menu-action { width: 100%; min-height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 9px; border: 0; border-radius: 7px; background: white; color: #555c51; text-align: left; font-size: 11px; cursor: pointer; }
+    .menu-action:hover { background: #f2f4ee; }
+    .menu-divider { height: 1px; margin: 8px 0; background: var(--line); }
+    .content { width: min(100%, 840px); min-height: calc(100vh - 115px); margin: 0 auto; display: flex; flex-direction: column; justify-content: center; }
+    .content.showing-notes { justify-content: flex-start; padding-top: 34px; }
+    .welcome { padding: 0 0 18px; animation: rise .55s both; }
+    .eyebrow { margin: 0 0 10px; color: #889078; font-size: 10px; font-weight: 700; letter-spacing: 1.35px; text-transform: uppercase; }
+    h1, h2, p { margin-top: 0; }
+    h1 { margin-bottom: 7px; font: 700 26px "Manrope", sans-serif; letter-spacing: 0; }
+    .welcome-copy { margin-bottom: 0; color: #858a81; font-size: 13px; }
+    .composer { position: relative; padding: 20px 21px 14px; border: 1px solid #e7e9e2; border-radius: 15px; background: var(--surface); box-shadow: 0 4px 15px rgba(38,46,29,.025); transition: border .2s, box-shadow .2s, transform .2s; animation: rise .6s .06s both; }
+    .composer:focus-within, .composer.dragging { border-color: #b8d47f; box-shadow: var(--shadow); }
+    .composer.dragging { transform: scale(1.008); }
+    .composer textarea { width: 100%; min-height: 94px; resize: vertical; padding: 5px 1px; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 15px; line-height: 1.6; }
+    .composer textarea::placeholder { color: #a3a79f; }
+    .composer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 11px; border-top: 1px solid #f0f1ed; }
+    .composer-tools, .composer-actions { display: flex; align-items: center; gap: 8px; }
+    .tool-button { min-height: 34px; padding: 0 9px; display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 7px; background: transparent; color: #777d74; font-size: 11px; cursor: pointer; transition: background .2s, color .2s; }
+    .tool-button:hover { background: #f2f4ee; color: var(--ink); }
+    .tool-glyph { font-size: 15px; }
+    .hint { color: #a2a69e; font-size: 10px; }
+    .add-button { height: 36px; padding: 0 16px; display: inline-flex; gap: 7px; align-items: center; border: 0; border-radius: 8px; background: var(--green); color: #26321b; font-size: 12px; font-weight: 700; cursor: pointer; transition: background .2s, transform .2s; }
+    .add-button:hover { background: #b9e864; transform: translateY(-1px); }
+    .add-button:disabled { opacity: .55; cursor: wait; transform: none; }
+    .file-input { display: none; }
+    .attachment-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .attachment-chip { display: flex; align-items: center; gap: 7px; max-width: 230px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: #fbfcfa; color: #66705e; font-size: 10px; }
+    .attachment-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .attachment-chip button { padding: 0 2px; border: 0; background: none; color: #858a81; cursor: pointer; }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; margin: 34px 0 15px; }
+    .section-heading[hidden] { display: none; }
+    .section-heading h2 { margin: 0; font: 700 17px "Manrope", sans-serif; letter-spacing: 0; }
+    .section-subtitle { margin-top: 4px; color: #92978e; font-size: 11px; }
+    .sort-label { color: #8c9188; font-size: 10px; }
+    .notes-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .note-card { position: relative; min-width: 0; padding: 17px; border: 1px solid var(--line); border-radius: 12px; background: white; animation: rise .32s both; transition: border .2s, box-shadow .2s, transform .2s; }
+    .note-card:hover { border-color: #d6ddcb; box-shadow: 0 7px 22px rgba(38,46,29,.055); transform: translateY(-2px); }
+    .note-card.completed { opacity: .65; }
+    .note-card.completed .note-title { text-decoration: line-through; }
+    .note-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .note-category { display: flex; align-items: center; gap: 6px; color: #777d72; font-size: 10px; }
+    .note-date { color: #9a9e97; font-size: 10px; }
+    .note-title { margin: 0 0 6px; font: 700 14px "Manrope", sans-serif; line-height: 1.45; overflow-wrap: anywhere; }
+    .note-summary { margin: 0; color: #747a71; font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-wrap; }
+    .note-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
+    .tag { padding: 4px 7px; border-radius: 5px; background: #f1f3ed; color: #68705f; font-size: 9px; }
+    .tag.priority-high { background: #fff0e7; color: #a35330; }
+    .tag.due { background: #fff6df; color: #8c6a21; }
+    .note-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; padding-top: 10px; border-top: 1px solid #f1f2ee; }
+    .note-action { display: inline-flex; align-items: center; gap: 5px; border: 0; padding: 4px 5px; border-radius: 5px; background: transparent; color: #8b9087; font-size: 10px; cursor: pointer; }
+    .note-action:hover { background: #f1f3ed; color: #394132; }
+    .note-actions { display: flex; gap: 3px; }
+    .attachment-link { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; margin-top: 10px; color: #53703b; font-size: 10px; text-decoration: none; }
+    .attachment-link:hover { text-decoration: underline; }
+    .empty-state { grid-column: 1 / -1; padding: 48px 20px; border: 1px dashed #dfe3d9; border-radius: 12px; text-align: center; color: #898f84; }
+    .empty-mark { width: 43px; height: 43px; display: grid; place-items: center; margin: 0 auto 12px; border-radius: 14px; background: #eef3e5; font-size: 20px; }
+    .empty-state strong { display: block; margin-bottom: 5px; color: #51584c; font-size: 13px; }
+    .empty-state p { margin: 0; font-size: 11px; }
+    .mobile-nav { display: none; }
+    .toast { position: fixed; right: 24px; bottom: 22px; z-index: 20; padding: 12px 16px; border-radius: 9px; background: #252b20; color: white; font-size: 12px; box-shadow: var(--shadow); animation: rise .2s both; }
+    .toast[hidden] { display: none; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @media (min-width: 1400px) { .main { padding-right: 54px; padding-left: 54px; } }
+    @media (max-width: 900px) {
+      .main { padding-right: 24px; padding-left: 24px; }
+      .notes-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 650px) {
+      body { min-width: 340px; }
+      .shell { display: block; }
+      .main { padding: 0 16px 35px; }
+      .topbar { height: 60px; }
+      .content { min-height: calc(100vh - 95px); }
+      .content.showing-notes { padding-top: 20px; }
+      .welcome { padding: 0 0 15px; }
+      h1 { font-size: 23px; }
+      .welcome-copy { max-width: 330px; font-size: 12px; line-height: 1.55; }
+      .composer { padding: 15px 14px 12px; }
+      .composer textarea { min-height: 90px; font-size: 14px; }
+      .composer-bottom { align-items: end; }
+      .composer-tools { gap: 0; }
+      .tool-button { width: 35px; height: 34px; justify-content: center; padding: 0; font-size: 0; }
+      .tool-glyph { font-size: 16px; }
+      .hint { display: none; }
+      .add-button { height: 35px; padding: 0 12px; }
+      .section-heading { margin-top: 27px; }
+      .notes-grid { gap: 9px; }
+      .note-card { padding: 14px; }
+      .toast { right: 14px; bottom: 14px; left: 14px; text-align: center; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <main class="main">
+      <header class="topbar"><div class="more-wrap"><button class="more-button" id="moreButton" type="button" aria-label="Открыть меню" aria-haspopup="true" aria-expanded="false" title="Открыть меню">⋯<span class="notice-dot" id="noticeDot" hidden></span></button><div class="more-menu" id="moreMenu" hidden><label class="search-wrap"><span class="search-symbol" aria-hidden="true">⌕</span><input class="search" id="searchInput" type="search" placeholder="Найти заметку или спросить…" aria-label="Поиск по заметкам"></label><p class="menu-heading">Разделы</p><nav class="nav-list" id="categoryNav" aria-label="Разделы заметок"></nav><div class="menu-divider"></div><p class="menu-heading">На завтра</p><div class="menu-events" id="menuEvents"></div><div class="menu-divider"></div><button class="menu-action" id="enableNotifications" type="button">♧ Включить уведомления браузера</button><button class="menu-action" id="exportNotes" type="button">↓ Экспортировать заметки</button></div></div></header>
+      <div class="content">
+        <section class="welcome"><h1 id="pageTitle">Запишите свою идею</h1><p class="welcome-copy" id="pageCopy">Или задачу, напоминание или просто мысль.</p></section>
+        <section class="composer" id="composer" aria-label="Новая заметка">
+          <textarea id="noteInput" placeholder="Напишите свою идею или сохраните что-нибудь важное…" aria-label="Текст новой заметки"></textarea>
+          <div class="attachment-list" id="attachmentList"></div>
+          <div class="composer-bottom">
+            <div class="composer-tools">
+              <button class="tool-button" type="button" id="fileButton" title="Добавить изображение или документ"><span class="tool-glyph" aria-hidden="true">⌁</span>Файл</button>
+              <input class="file-input" type="file" id="fileInput" accept="image/*,.pdf,.doc,.docx,.txt,.md,.rtf,.csv" multiple>
+              <button class="tool-button" type="button" id="linkButton" title="Вставить ссылку"><span class="tool-glyph" aria-hidden="true">↗</span>Ссылка</button>
+              <span class="hint">Можно просто вставить текст</span>
+            </div>
+            <div class="composer-actions"><button class="add-button" type="button" id="addButton"><span aria-hidden="true">✳</span> Разобрать и сохранить</button></div>
+          </div>
+        </section>
+        <section class="section-heading" id="listHeading"><div><h2 id="listTitle">Всё важное</h2><div class="section-subtitle" id="listSubtitle">Твои мысли, собранные в одном месте</div></div><span class="sort-label" id="sortLabel"></span></section>
+        <section class="notes-grid" id="notesGrid" aria-live="polite"></section>
+      </div>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script>
+    (() => {
+      const categories = [
+        { id: "all", label: "Всё", icon: "◫" },
+        { id: "study", label: "Учёба", icon: "📚" },
+        { id: "homework", label: "Домашка", icon: "📝" },
+        { id: "tasks", label: "Задачи", icon: "✅" },
+        { id: "ideas", label: "Идеи", icon: "💡" },
+        { id: "reminders", label: "Напоминания", icon: "🔔" },
+        { id: "important", label: "Важное", icon: "⭐" },
+        { id: "documents", label: "Документы", icon: "📄" },
+        { id: "other", label: "Другое", icon: "📌" }
+      ];
+      const categoryById = Object.fromEntries(categories.map(category => [category.id, category]));
+      const storageKey = "smart-notes-v1";
+      const dbName = "smart-notes-files";
+      let notes = loadNotes();
+      let activeCategory = "all";
+      let notesVisible = false;
+      let selectedFiles = [];
+      let toastTimeout;
+
+      const elements = {
+        nav: document.getElementById("categoryNav"),
+        grid: document.getElementById("notesGrid"),
+        input: document.getElementById("noteInput"),
+        fileInput: document.getElementById("fileInput"),
+        fileList: document.getElementById("attachmentList"),
+        search: document.getElementById("searchInput"),
+        count: document.getElementById("noteCount"),
+        composer: document.getElementById("composer"),
+        addButton: document.getElementById("addButton"),
+        toast: document.getElementById("toast")
+      };
+
+      function loadNotes() {
+        try {
+          const stored = JSON.parse(localStorage.getItem(storageKey) || "[]");
+          return Array.isArray(stored) ? stored : [];
+        } catch { return []; }
+      }
+
+      function persistNotes() {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(notes));
+          return true;
+        } catch {
+          showToast("Не удалось сохранить заметки. Освободи место в браузере.");
+          return false;
+        }
+      }
+
+      function openDatabase() {
+        return new Promise((resolve, reject) => {
+          if (!("indexedDB" in window)) return reject(new Error("Хранилище файлов недоступно"));
+          const request = indexedDB.open(dbName, 1);
+          request.onupgradeneeded = () => request.result.createObjectStore("files");
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      async function storeFile(id, file) {
+        const database = await openDatabase();
+        return new Promise((resolve, reject) => {
+          const transaction = database.transaction("files", "readwrite");
+          transaction.objectStore("files").put(file, id);
+          transaction.oncomplete = () => { database.close(); resolve(); };
+          transaction.onerror = () => { database.close(); reject(transaction.error); };
+        });
+      }
+
+      async function readFile(id) {
+        const database = await openDatabase();
+        return new Promise((resolve, reject) => {
+          const request = database.transaction("files").objectStore("files").get(id);
+          request.onsuccess = () => { database.close(); resolve(request.result); };
+          request.onerror = () => { database.close(); reject(request.error); };
+        });
+      }
+
+      async function removeFile(id) {
+        try {
+          const database = await openDatabase();
+          await new Promise((resolve, reject) => {
+            const transaction = database.transaction("files", "readwrite");
+            transaction.objectStore("files").delete(id);
+            transaction.oncomplete = resolve;
+            transaction.onerror = () => reject(transaction.error);
+          });
+          database.close();
+        } catch { /* The note remains removable if file storage is unavailable. */ }
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+      }
+
+      function showToast(message) {
+        elements.toast.textContent = message;
+        elements.toast.hidden = false;
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => { elements.toast.hidden = true; }, 2800);
+      }
+
+      function localDateKey(date) {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      }
+
+      function tomorrowNotes() {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const targetDay = localDateKey(tomorrow);
+        return notes.filter(note => {
+          if (note.completed || !note.dueISO) return false;
+          const dueDate = new Date(note.dueISO);
+          return !Number.isNaN(dueDate.getTime()) && localDateKey(dueDate) === targetDay;
+        });
+      }
+
+      function sendTomorrowNotification() {
+        if (!("Notification" in window) || Notification.permission !== "granted") return;
+        const events = tomorrowNotes();
+        if (!events.length) return;
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const signature = events.map(note => note.id).sort().join(",");
+        const notificationKey = `smart-notes-notified-${localDateKey(tomorrow)}`;
+        if (localStorage.getItem(notificationKey) === signature) return;
+        localStorage.setItem(notificationKey, signature);
+        const titles = events.slice(0, 3).map(note => note.title).join(" · ");
+        const notification = new Notification(`Завтра у тебя ${events.length} ${pluralize(events.length, ["дело", "дела", "дел"])}`, { body: titles });
+        notification.onclick = () => { window.focus(); notification.close(); };
+      }
+
+      function renderTomorrowNotifications() {
+        const events = tomorrowNotes();
+        const dot = document.getElementById("noticeDot");
+        const menuEvents = document.getElementById("menuEvents");
+        dot.hidden = events.length === 0;
+        menuEvents.innerHTML = events.length
+          ? events.map(note => `<div class="menu-event"><strong>${escapeHtml(note.title)}</strong><span>${escapeHtml(note.due || "Завтра")} · ${escapeHtml(categoryById[note.mainCategory]?.label || "Напоминание")}</span></div>`).join("")
+          : `<div class="menu-empty">На завтра пока ничего не запланировано.</div>`;
+        if (events.length) sendTomorrowNotification();
+      }
+
+      function dateLabel(date) {
+        return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(date);
+      }
+
+      function parseDate(text) {
+        const lower = text.toLocaleLowerCase("ru-RU");
+        const now = new Date();
+        const dayMatch = lower.match(/(?:^|\s)(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?=$|[\s.,!?])/);
+        const months = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+        if (dayMatch) {
+          let year = now.getFullYear();
+          let date = new Date(year, months.indexOf(dayMatch[2]), Number(dayMatch[1]));
+          if (date < new Date(now.getFullYear(), now.getMonth(), now.getDate())) date = new Date(year + 1, months.indexOf(dayMatch[2]), Number(dayMatch[1]));
+          return { date, label: dateLabel(date) };
+        }
+        const isoMatch = lower.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+        if (isoMatch) {
+          const date = new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+          return Number.isNaN(date.getTime()) ? null : { date, label: dateLabel(date) };
+        }
+        if (/(?:^|\s)сегодня(?=$|\s|[.,!?])/.test(lower)) return { date: now, label: "сегодня" };
+        if (/(?:^|\s)завтра(?=$|\s|[.,!?])/.test(lower)) { const date = new Date(now); date.setDate(now.getDate() + 1); return { date, label: "завтра" }; }
+        const weekdays = ["воскресенья", "понедельника", "вторника", "среды", "четверга", "пятницы", "субботы"];
+        const weekdayPattern = /(?:^|\s)(?:до|к|на|в)\s+(?:следующ(?:ий|ую|его)\s+)?(понедельник(?:а)?|вторник(?:а)?|сред(?:у|ы)|четверг(?:а)?|пятниц(?:у|ы)|суббот(?:у|ы)|воскресень(?:е|я))(?=$|[\s.,!?])/;
+        const weekdayMatch = lower.match(weekdayPattern);
+        if (!weekdayMatch) return null;
+        const target = weekdays.findIndex(day => weekdayMatch[1].startsWith(day.slice(0, 5)) || day.startsWith(weekdayMatch[1].slice(0, 5)));
+        if (target < 0) return null;
+        const date = new Date(now);
+        const difference = (target - now.getDay() + 7) % 7 || 7;
+        date.setDate(now.getDate() + difference);
+        return { date, label: `в ${date.toLocaleDateString("ru-RU", { weekday: "long" })}` };
+      }
+
+      function analyze(text, attachments) {
+        const lower = text.toLocaleLowerCase("ru-RU");
+        const fileNames = attachments.map(file => file.name).join(" ").toLocaleLowerCase("ru-RU");
+        const categoriesFound = new Set();
+        const includes = expression => expression.test(lower);
+        if (includes(/математ|алгебр|геометр|англий|биолог|истори|физик|хими|географ|литератур|урок|экзамен|ielts|учеб|лекци|конспект|курс|подготовиться/)) categoriesFound.add("study");
+        if (includes(/домашн|(?:^|\s)дз(?=$|\s|[.,!?])|упражнен|задач[иауы]?\s*\d|номер\s*\d|по\s+(?:математик|алгебр|геометр|английск|физик|хими)/)) categoriesFound.add("homework");
+        if (includes(/(?:^|\s)(?:сделать|решить|купить|позвонить|отправить|написать|подготовиться|записаться|заказать|проверить|сдать|закончить|забрать|оплатить|не забыть)(?=$|\s|[.,!?])|нужно\s|надо\s|необходимо\s|дедлайн|todo\b/i)) categoriesFound.add("tasks");
+        if (includes(/идея|придумал|придумала|приложени|проект|стартап|концепц|было бы здорово|можно создать/)) categoriesFound.add("ideas");
+        if (includes(/не забыть|напомни|напоминани|до\s+(?:понедельник|вторник|сред|четверг|пятниц|суббот|воскрес)|(?:^|\s)(?:завтра|сегодня)(?=$|\s|[.,!?])|(?:^|\s)\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?=$|\s|[.,!?])/)) categoriesFound.add("reminders");
+        if (includes(/важно|срочно|приоритет|обязательно|ключев|пароль|документ|договор|паспорт|страхов/)) categoriesFound.add("important");
+        if (attachments.some(file => file.type.startsWith("image/")) || /\.(?:pdf|docx?|rtf|txt|md|csv)$/i.test(fileNames)) categoriesFound.add("documents");
+        if (!categoriesFound.size) categoriesFound.add("other");
+
+        const due = parseDate(lower);
+        const hasTask = categoriesFound.has("tasks") || categoriesFound.has("homework");
+        const urgent = includes(/срочно|очень важно|как можно скорее|обязательно|\bважно\b/);
+        let priority = urgent || (due && hasTask) ? "Высокий" : hasTask || due ? "Средний" : categoriesFound.has("important") ? "Высокий" : "Обычный";
+        let clean = text.replace(/https?:\/\/\S+/g, "").replace(/\s+/g, " ").trim();
+        const prefixes = /^(?:по\s+(?:математике|алгебре|геометрии|английскому(?:\s+языку)?|физике|химии|биологии|истории|географии|литературе)\s+|не забыть\s+|идея(?:\s+для\s+[^:]+)?\s*:\s*)/i;
+        const titleSource = clean.replace(prefixes, "").replace(/(?:^|\s)до\s+(?:(?:следующ(?:ий|ую|его)\s+)?(?:понедельник(?:а)?|вторник(?:а)?|сред(?:у|ы)|четверг(?:а)?|пятниц(?:у|ы)|суббот(?:у|ы)|воскресень(?:е|я))|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря))(?=$|[\s.,!?])/i, "").replace(/(?:^|\s)\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?=$|[\s.,!?])/i, "").replace(/[.!?]+$/, "").trim() || attachments[0]?.name || "Новая заметка";
+        const readableTitle = titleSource.charAt(0).toLocaleUpperCase("ru-RU") + titleSource.slice(1);
+        const title = readableTitle.length > 65 ? `${readableTitle.slice(0, 62).trimEnd()}…` : readableTitle;
+        const description = clean.length > 200 ? `${clean.slice(0, 197).trimEnd()}…` : clean;
+        let nextAction = "";
+        if (categoriesFound.has("homework")) nextAction = "Выполнить задание";
+        else if (categoriesFound.has("ideas")) nextAction = "Развить идею";
+        else if (hasTask) nextAction = "Выполнить задачу";
+        else if (categoriesFound.has("reminders")) nextAction = "Не забыть вовремя";
+        const mainCategory = categoriesFound.has("homework") ? "homework" : categoriesFound.has("ideas") ? "ideas" : categoriesFound.has("reminders") ? "reminders" : categoriesFound.has("tasks") ? "tasks" : categoriesFound.has("study") ? "study" : categoriesFound.has("documents") ? "documents" : categoriesFound.has("important") ? "important" : "other";
+        return { title, description, categories: [...categoriesFound], mainCategory, priority, status: categoriesFound.has("ideas") ? "Новая идея" : "", due: due?.label || "", dueISO: due?.date.toISOString() || "", nextAction };
+      }
+
+      async function analyzeWithAI(text, attachments) {
+        const response = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, attachments: attachments.map(file => file.name) })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Не удалось выполнить AI-анализ.");
+        const value = result.analysis;
+        if (!value || typeof value !== "object") throw new Error("AI вернул пустой ответ. Попробуй ещё раз.");
+        const hints = analyze(text, attachments);
+        const modelCategories = (Array.isArray(value.categories) ? value.categories : []).filter(id => categoryById[id] && id !== "all" && id !== "other");
+        const categories = [...new Set([...modelCategories, ...hints.categories.filter(id => id !== "other")])];
+        if (!categories.length) categories.push("other");
+        const modelDueISO = typeof value.dueISO === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.dueISO) ? value.dueISO : "";
+        const dueISO = modelDueISO || hints.dueISO.slice(0, 10);
+        const dueDate = dueISO ? new Date(`${dueISO}T12:00:00`) : null;
+        const due = dueDate && !Number.isNaN(dueDate.getTime())
+          ? dateLabel(dueDate)
+          : "";
+        const mainCategory = ["homework", "ideas", "reminders", "tasks", "study", "documents", "important", "other"].find(id => categories.includes(id)) || "other";
+        const priorities = { "Обычный": 0, "Средний": 1, "Высокий": 2 };
+        const modelPriority = priorities[value.priority] === undefined ? "Обычный" : value.priority;
+        const priority = priorities[hints.priority] > priorities[modelPriority] ? hints.priority : modelPriority;
+        return {
+          title: typeof value.title === "string" && value.title.trim() ? value.title.trim() : text.slice(0, 80),
+          description: typeof value.description === "string" && value.description.trim() ? value.description.trim() : text,
+          categories,
+          mainCategory,
+          priority,
+          status: categories.includes("ideas") ? "Новая идея" : "",
+          due,
+          dueISO: dueDate && !Number.isNaN(dueDate.getTime()) ? dueDate.toISOString() : "",
+          nextAction: typeof value.nextAction === "string" && value.nextAction.trim() ? value.nextAction : hints.nextAction
+        };
+      }
+
+      function renderNavigation() {
+        const counts = Object.fromEntries(categories.map(category => [category.id, category.id === "all" ? notes.length : notes.filter(note => note.categories.includes(category.id)).length]));
+        elements.nav.innerHTML = categories.map(category => `
+          <button class="nav-item ${activeCategory === category.id ? "active" : ""}" data-category="${category.id}" type="button" aria-current="${activeCategory === category.id ? "page" : "false"}">
+            <span class="nav-icon" aria-hidden="true">${category.icon}</span><span>${category.label}</span><span class="nav-count">${counts[category.id] || ""}</span>
+          </button>`).join("");
+        if (elements.count) elements.count.textContent = `${notes.length} ${pluralize(notes.length, ["заметка", "заметки", "заметок"])}`;
+      }
+
+      function pluralize(number, forms) {
+        const lastTwo = number % 100;
+        const last = number % 10;
+        if (lastTwo >= 11 && lastTwo <= 14) return forms[2];
+        if (last === 1) return forms[0];
+        return last >= 2 && last <= 4 ? forms[1] : forms[2];
+      }
+
+      function matchesSearch(note, query) {
+        if (!query) return true;
+        const normalized = query.toLocaleLowerCase("ru-RU").replace(/[?!.,]/g, " ").trim();
+        const words = normalized.split(/\s+/).filter(word => word.length > 1 && !["покажи", "найди", "мне", "что", "нужно", "сделать", "до", "есть", "моя", "мои", "мою", "по", "все"].includes(word));
+        const haystack = `${note.title} ${note.description} ${note.source} ${note.categories.map(id => categoryById[id]?.label).join(" ")} ${note.attachments.map(file => file.name).join(" ")} ${note.due} ${note.priority}`.toLocaleLowerCase("ru-RU");
+        const score = words.filter(word => haystack.includes(word)).length;
+        const querySuggestsAction = /что\s+мне\s+нужно|сделать\s+до|задач/i.test(normalized);
+        const actionMatch = !querySuggestsAction || note.categories.some(id => ["tasks", "homework", "reminders"].includes(id));
+        const dueMatch = !/до\s/.test(normalized) || note.due || /до\s/.test(note.source.toLocaleLowerCase("ru-RU"));
+        return actionMatch && dueMatch && score > 0;
+      }
+
+      function renderNotes() {
+        renderNavigation();
+        renderTomorrowNotifications();
+        const query = elements.search.value;
+        const content = document.querySelector(".content");
+        if (!notesVisible && !query) {
+          content.classList.remove("showing-notes");
+          document.getElementById("listHeading").hidden = true;
+          elements.grid.innerHTML = "";
+          return;
+        }
+        content.classList.add("showing-notes");
+        const current = notes.filter(note => (activeCategory === "all" || note.categories.includes(activeCategory)) && matchesSearch(note, query));
+        const heading = activeCategory === "all" ? "Всё важное" : `${categoryById[activeCategory].icon} ${categoryById[activeCategory].label}`;
+        document.getElementById("listTitle").textContent = query ? "Результаты поиска" : heading;
+        document.getElementById("listSubtitle").textContent = query ? `Найдено: ${current.length}` : "Твои мысли, собранные в одном месте";
+        const pageTitle = document.getElementById("pageTitle");
+        const pageCopy = document.getElementById("pageCopy");
+        if (activeCategory !== "all" && !query) {
+          pageTitle.textContent = `${categoryById[activeCategory].icon} ${categoryById[activeCategory].label}`;
+          pageCopy.textContent = "Здесь всё, что умная сортировка собрала для тебя.";
+        } else {
+          pageTitle.textContent = "Запишите свою идею";
+          pageCopy.textContent = "Или задачу, напоминание или просто мысль.";
+        }
+        if (!current.length) {
+          document.getElementById("listHeading").hidden = false;
+          const emptyTitle = query ? "Ничего не нашлось" : activeCategory === "all" ? "Пока здесь тихо" : "В этом разделе пока пусто";
+          const emptyCopy = query ? "Попробуй другой запрос или проверь формулировку." : activeCategory === "all" ? "Добавь мысль выше — остальное мы разберём." : "Добавь заметку, а мы определим, относится ли она сюда.";
+          elements.grid.innerHTML = `<div class="empty-state"><div class="empty-mark">${query ? "⌕" : "✳"}</div><strong>${emptyTitle}</strong><p>${emptyCopy}</p></div>`;
+          return;
+        }
+        document.getElementById("listHeading").hidden = false;
+        elements.grid.innerHTML = current.map((note, index) => {
+          const category = categoryById[note.mainCategory] || categoryById.other;
+          const tags = note.categories.map(id => `<span class="tag">${categoryById[id]?.icon || ""} ${escapeHtml(categoryById[id]?.label || id)}</span>`).join("");
+          const date = new Date(note.createdAt);
+          const createdLabel = Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+          const attachmentMarkup = (note.attachments || []).map(file => `<a class="attachment-link" href="#" data-download="${escapeHtml(file.id)}" data-name="${escapeHtml(file.name)}" data-type="${escapeHtml(file.type)}">${file.type.startsWith("image/") ? "▧" : "↗"} ${escapeHtml(file.name)}</a>`).join("");
+          return `<article class="note-card ${note.completed ? "completed" : ""}" style="animation-delay:${Math.min(index * 45, 240)}ms">
+            <div class="note-top"><span class="note-category"><span aria-hidden="true">${category.icon}</span>${escapeHtml(category.label)}</span><span class="note-date">${escapeHtml(createdLabel)}</span></div>
+            <h3 class="note-title">${escapeHtml(note.title)}</h3><p class="note-summary">${escapeHtml(note.description || note.source || "Файл сохранён")}</p>
+            ${attachmentMarkup}
+            <div class="note-tags">${tags}${note.status ? `<span class="tag">Статус: ${escapeHtml(note.status)}</span>` : ""}<span class="tag ${note.priority === "Высокий" ? "priority-high" : ""}">Приоритет: ${escapeHtml(note.priority)}</span>${note.due ? `<span class="tag due">◷ ${escapeHtml(note.due)}</span>` : ""}</div>
+            ${note.nextAction ? `<div style="margin-top:10px;color:#70766c;font-size:10px"><span style="color:#9a9e97">Дальше:</span> ${escapeHtml(note.nextAction)}</div>` : ""}
+            <div class="note-footer"><span style="color:#a0a49d;font-size:9px">${note.completed ? "Выполнено" : ""}</span><div class="note-actions"><button class="note-action" type="button" data-action="complete" data-id="${escapeHtml(note.id)}" aria-label="${note.completed ? "Вернуть в активные" : "Отметить выполненной"}">${note.completed ? "↶ Вернуть" : "✓ Готово"}</button><button class="note-action" type="button" data-action="delete" data-id="${escapeHtml(note.id)}" aria-label="Удалить заметку">⌫</button></div></div>
+          </article>`;
+        }).join("");
+      }
+
+      function renderAttachments() {
+        elements.fileList.innerHTML = selectedFiles.map((file, index) => `<div class="attachment-chip"><span aria-hidden="true">${file.type.startsWith("image/") ? "▧" : "📄"}</span><span title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span><button type="button" data-remove-file="${index}" aria-label="Убрать ${escapeHtml(file.name)}">×</button></div>`).join("");
+      }
+
+      async function addNote() {
+        const text = elements.input.value.trim();
+        if (!text && selectedFiles.length === 0) {
+          elements.input.focus();
+          showToast("Добавь текст, ссылку или файл, чтобы продолжить.");
+          return;
+        }
+        elements.addButton.disabled = true;
+        try {
+          const files = [...selectedFiles];
+          const content = text || files.map(file => file.name).join(" · ");
+          const analysis = await analyzeWithAI(content, files);
+          const savedAttachments = [];
+          for (const file of files) {
+            const id = crypto.randomUUID();
+            await storeFile(id, file);
+            savedAttachments.push({ id, name: file.name, type: file.type || "application/octet-stream" });
+          }
+          const note = {
+            id: crypto.randomUUID(), source: content, title: analysis.title, description: analysis.description,
+            categories: analysis.categories, mainCategory: analysis.mainCategory, priority: analysis.priority, status: analysis.status,
+            due: analysis.due, dueISO: analysis.dueISO, nextAction: analysis.nextAction,
+            attachments: savedAttachments, createdAt: new Date().toISOString(), completed: false
+          };
+          notes.unshift(note);
+          if (!persistNotes()) { notes.shift(); return; }
+          elements.input.value = "";
+          selectedFiles = [];
+          renderAttachments();
+          activeCategory = "all";
+          notesVisible = true;
+          renderNotes();
+          showToast(`Сохранено в раздел «${categoryById[note.mainCategory].label}»${note.categories.length > 1 ? ` и ещё ${note.categories.length - 1}` : ""}.`);
+        } catch (error) {
+          showToast(error instanceof Error ? error.message : "Не удалось сохранить заметку.");
+        } finally {
+          elements.addButton.disabled = false;
+        }
+      }
+
+      function acceptFiles(fileList) {
+        for (const file of fileList) {
+          if (file.size > 12 * 1024 * 1024) { showToast(`${file.name}: максимальный размер файла 12 МБ.`); continue; }
+          if (!selectedFiles.some(existing => existing.name === file.name && existing.size === file.size)) selectedFiles.push(file);
+        }
+        renderAttachments();
+      }
+
+      document.getElementById("fileButton").addEventListener("click", () => elements.fileInput.click());
+      elements.fileInput.addEventListener("change", event => { acceptFiles(event.target.files); event.target.value = ""; });
+      document.getElementById("linkButton").addEventListener("click", () => {
+        const link = window.prompt("Вставь ссылку:");
+        if (!link) return;
+        const trimmed = link.trim();
+        const safeLink = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+        try {
+          const parsed = new URL(safeLink);
+          if (!parsed.hostname.includes(".")) throw new Error("Invalid hostname");
+          elements.input.value = `${elements.input.value.trim()}${elements.input.value.trim() ? "\n" : ""}${parsed.href}`;
+          elements.input.focus();
+        } catch { showToast("Похоже, ссылка введена неверно."); }
+      });
+      document.getElementById("addButton").addEventListener("click", addNote);
+      elements.input.addEventListener("keydown", event => { if ((event.ctrlKey || event.metaKey) && event.key === "Enter") addNote(); });
+      elements.search.addEventListener("input", () => { notesVisible = true; renderNotes(); });
+      const moreButton = document.getElementById("moreButton");
+      const moreMenu = document.getElementById("moreMenu");
+      moreButton.addEventListener("click", () => {
+        const isOpen = moreMenu.hidden;
+        moreMenu.hidden = !isOpen;
+        moreButton.setAttribute("aria-expanded", String(isOpen));
+      });
+      document.addEventListener("click", event => {
+        if (!event.target.closest(".more-wrap")) {
+          moreMenu.hidden = true;
+          moreButton.setAttribute("aria-expanded", "false");
+        }
+      });
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+          moreMenu.hidden = true;
+          moreButton.setAttribute("aria-expanded", "false");
+        }
+      });
+      document.getElementById("enableNotifications").addEventListener("click", async () => {
+        if (!("Notification" in window)) { showToast("Этот браузер не поддерживает системные уведомления."); return; }
+        const permission = await Notification.requestPermission();
+        if (permission === "granted") {
+          showToast("Уведомления включены.");
+          sendTomorrowNotification();
+        } else showToast("Разрешение на уведомления не выдано.");
+      });
+      document.getElementById("exportNotes").addEventListener("click", () => {
+        const file = new Blob([JSON.stringify(notes, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(file);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = "smart-notes.json";
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        moreMenu.hidden = true;
+        moreButton.setAttribute("aria-expanded", "false");
+      });
+      elements.nav.addEventListener("click", event => {
+        const button = event.target.closest("[data-category]");
+        if (!button) return;
+        activeCategory = button.dataset.category;
+        notesVisible = true;
+        elements.search.value = "";
+        moreMenu.hidden = true;
+        moreButton.setAttribute("aria-expanded", "false");
+        renderNotes();
+      });
+      elements.fileList.addEventListener("click", event => {
+        const button = event.target.closest("[data-remove-file]");
+        if (!button) return;
+        selectedFiles.splice(Number(button.dataset.removeFile), 1);
+        renderAttachments();
+      });
+      elements.grid.addEventListener("click", async event => {
+        const action = event.target.closest("[data-action]");
+        if (action) {
+          const note = notes.find(item => item.id === action.dataset.id);
+          if (!note) return;
+          if (action.dataset.action === "delete") {
+            notes = notes.filter(item => item.id !== note.id);
+            for (const file of note.attachments || []) await removeFile(file.id);
+            if (persistNotes()) showToast("Заметка удалена.");
+          } else {
+            note.completed = !note.completed;
+            persistNotes();
+          }
+          renderNotes();
+          return;
+        }
+        const download = event.target.closest("[data-download]");
+        if (!download) return;
+        event.preventDefault();
+        try {
+          const file = await readFile(download.dataset.download);
+          if (!file) throw new Error("File not found");
+          const url = URL.createObjectURL(file);
+          const anchor = document.createElement("a");
+          anchor.href = url;
+          anchor.download = download.dataset.name;
+          anchor.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch { showToast("Файл недоступен в хранилище браузера."); }
+      });
+      ["dragenter", "dragover"].forEach(type => elements.composer.addEventListener(type, event => { event.preventDefault(); elements.composer.classList.add("dragging"); }));
+      ["dragleave", "drop"].forEach(type => elements.composer.addEventListener(type, event => { event.preventDefault(); elements.composer.classList.remove("dragging"); }));
+      elements.composer.addEventListener("drop", event => {
+        if (event.dataTransfer.files.length) acceptFiles(event.dataTransfer.files);
+        const pasted = event.dataTransfer.getData("text/plain");
+        if (pasted && !event.dataTransfer.files.length) elements.input.value += pasted;
+      });
+      document.addEventListener("paste", event => {
+        if (event.clipboardData?.files?.length && document.activeElement === elements.input) acceptFiles(event.clipboardData.files);
+      });
+
+      renderNotes();
+      window.addEventListener("focus", renderTomorrowNotifications);
+      window.setInterval(renderTomorrowNotifications, 30 * 60 * 1000);
+    })();
+  </script>
+</body>
+</html>
